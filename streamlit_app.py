@@ -144,13 +144,19 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
     border-color: rgba(168, 85, 247, 0.4) !important;
 }
 
-/* Selected Asset Button (Tooltip Hack) */
-div[data-testid="stTooltipHoverTarget"] > button {
-    background: rgba(0, 255, 102, 0.08) !important;
+/* Selected Asset Button (Tertiary style) */
+.stButton>button[kind="tertiary"] {
+    background: rgba(0, 255, 102, 0.15) !important;
     border: 2px solid #00ff66 !important;
-    box-shadow: 0 0 18px rgba(0, 255, 102, 0.5) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 102, 0.6) !important;
     color: #00ff66 !important;
     font-weight: 700 !important;
+}
+.stButton>button[kind="tertiary"]:hover {
+    background: rgba(0, 255, 102, 0.25) !important;
+    border-color: #00ff66 !important;
+    box-shadow: 0 0 25px rgba(0, 255, 102, 0.8) !important;
+    color: #00ff66 !important;
 }
 
 /* Radio nav strip */
@@ -608,7 +614,7 @@ for cat_name, tickers in asset_categories.items():
         btn_label = ticker
         
         # Injecting compact padding styles on the button
-        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="secondary", help="Selected Asset" if is_selected else None):
+        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="tertiary" if is_selected else "secondary"):
             if ticker in st.session_state.selected_tickers:
                 st.session_state.selected_tickers.remove(ticker)
             else:
