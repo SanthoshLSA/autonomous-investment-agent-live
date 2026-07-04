@@ -108,41 +108,60 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
     border-right: 1px solid rgba(168, 85, 247, 0.15) !important;
 }
 
-/* Buttons styling */
+/* Buttons — compact chip sizing */
 .stButton>button {
     font-family: 'Space Grotesk', sans-serif !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.12em !important;
-    border-radius: 12px !important;
-    padding: 0.75rem 2rem !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    border-radius: 8px !important;
+    padding: 0.35rem 0.65rem !important;
+    font-size: 0.8rem !important;
+    transition: all 0.2s ease !important;
     width: 100% !important;
 }
 
-/* Primary Button Styling */
+/* Primary Button */
 .stButton>button[kind="primary"] {
     background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
     color: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.3) !important;
 }
 .stButton>button[kind="primary"]:hover {
-    transform: scale(1.02) !important;
-    box-shadow: 0 0 25px rgba(168, 85, 247, 0.45) !important;
-    border-color: rgba(168, 85, 247, 0.5) !important;
+    box-shadow: 0 0 22px rgba(168, 85, 247, 0.55) !important;
+    border-color: rgba(168, 85, 247, 0.6) !important;
 }
 
-/* Secondary Button Styling */
+/* Secondary Button */
 .stButton>button[kind="secondary"] {
-    background: rgba(12, 8, 22, 0.6) !important;
-    color: #cbd5e1 !important;
-    border: 1px solid rgba(168, 85, 247, 0.2) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    color: #94a3b8 !important;
+    border: 1px solid rgba(168, 85, 247, 0.15) !important;
 }
 .stButton>button[kind="secondary"]:hover {
-    background: rgba(168, 85, 247, 0.15) !important;
-    color: #a855f7 !important;
+    background: rgba(168, 85, 247, 0.12) !important;
+    color: #c4b5fd !important;
+    border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+/* Radio nav strip */
+.stRadio [data-testid="stWidgetLabel"] { display: none !important; }
+.stRadio > div { flex-direction: row !important; gap: 12px !important; }
+.stRadio label {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid rgba(168,85,247,0.2) !important;
+    border-radius: 8px !important;
+    padding: 5px 14px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+.stRadio label:has(input:checked) {
+    background: rgba(168,85,247,0.18) !important;
     border-color: #a855f7 !important;
+    color: #e9d5ff !important;
 }
 
 /* Glassmorphic Cards */
@@ -231,11 +250,8 @@ div[data-testid="stDataFrame"] {
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# ── Title & Sidebar ──────────────────────────────────────────────────────────
-st.markdown(
-    '<h1 class="gradient-header">AUTONOMOUS INVESTMENT ADVISER DESK</h1>', unsafe_allow_html=True
-)
-st.markdown("---")
+# ── Compact App Title ───────────────────────────────────────────────────────
+st.markdown('<p class="gradient-header" style="font-size:1.5rem; margin:0; padding:4px 0 2px 0; line-height:1.2;">⚡ AUTONOMOUS INVESTMENT ADVISER</p>', unsafe_allow_html=True)
 
 
 # ── Global Authentication Gate ───────────────────────────────────────────────
@@ -271,30 +287,37 @@ if st.session_state.authenticated_user is None:
     st.stop()
 
 
-# ── Unified Control Board Header ──────────────────────────────────────────────
-col_prof1, col_prof2 = st.columns([3, 1])
-with col_prof1:
-    st.write(
-        f"Stance: **{config.portfolio.risk_tolerance.upper()}** | Optimization: **{config.portfolio.optimization_method}**"
+# ── Compact Topbar: Nav + User ───────────────────────────────────────────────
+col_nav, col_stance, col_user = st.columns([3, 4, 2])
+with col_nav:
+    workspace_page = st.radio(
+        "workspace",
+        ["AI Adviser Desk", "Paper Trading Workspace"],
+        horizontal=True,
+        label_visibility="collapsed",
     )
-with col_prof2:
-    st.markdown(f"Logged in: **{st.session_state.authenticated_user}**")
-    if st.button("Sign Out", key="top_signout_btn", use_container_width=True):
-        st.session_state.authenticated_user = None
-        st.query_params.clear()
-        st.rerun()
+with col_stance:
+    st.markdown(
+        f"<p style='font-size:0.8rem; color:#64748b; padding-top:8px;'>"
+        f"Stance: <b style='color:#a855f7'>{config.portfolio.risk_tolerance.upper()}</b> "
+        f"&nbsp;·&nbsp; Optimizer: <b style='color:#a855f7'>{config.portfolio.optimization_method}</b></p>",
+        unsafe_allow_html=True
+    )
+with col_user:
+    col_u1, col_u2 = st.columns([3, 2])
+    with col_u1:
+        st.markdown(
+            f"<p style='font-size:0.8rem; color:#94a3b8; padding-top:8px; text-align:right;'>"
+            f"👤 <b style='color:#c4b5fd;'>{st.session_state.authenticated_user}</b></p>",
+            unsafe_allow_html=True
+        )
+    with col_u2:
+        if st.button("Sign Out", key="top_signout_btn", use_container_width=True, type="secondary"):
+            st.session_state.authenticated_user = None
+            st.query_params.clear()
+            st.rerun()
 
-st.markdown("---")
-
-# ── Main Workspace Navigation ────────────────────────────────────────────────
-st.markdown("#### Navigation")
-workspace_page = st.radio(
-    "Choose Workspace",
-    ["AI Adviser Desk", "Paper Trading Workspace"],
-    horizontal=True,
-    label_visibility="collapsed",
-)
-st.markdown("---")
+st.markdown("<hr style='margin:6px 0 10px 0; border:none; border-top:1px solid rgba(168,85,247,0.15);'>", unsafe_allow_html=True)
 
 # ── Paper Trading Workspace Rendering ─────────────────────────────────────────
 if workspace_page == "Paper Trading Workspace":
@@ -550,19 +573,16 @@ if workspace_page == "Paper Trading Workspace":
     st.stop()
 
 
-# ── AI Adviser Workspace Rendering ────────────────────────────────────────────
-st.markdown("### AI Adviser Desk")
-
-# Stance & Optimization explanation expander
-with st.expander("Understanding Configuration Parameters"):
-    st.markdown("""
-    - **Stance (Risk Tolerance)**: **`CONSERVATIVE`** instructs the adviser agent to prioritize capital preservation over high returns. It focuses on stable assets with historically low variance.
-    - **Optimization Method**: **`MIN VOLATILITY`** calculates asset weight allocations mathematically designed to minimize the expected variance of the overall portfolio. It relies on historical price covariance to minimize portfolio fluctuations and drawdowns.
-    """)
+# ── AI Adviser Workspace ─────────────────────────────────────────────────────
+with st.expander("⚙️ Config — Risk Stance & Optimization", expanded=False):
+    st.markdown(
+        f"**Stance** `{config.portfolio.risk_tolerance.upper()}` — capital preservation, low-variance stable assets.  "
+        f"**Optimizer** `{config.portfolio.optimization_method}` — minimizes portfolio variance via historical covariance."
+    )
 
 st.markdown("#### Watchlist Assets Selection")
 
-# Interactive button grid for asset selection
+# Interactive button grid for asset selection - Compact 8-column layout
 asset_categories = {
     "🇺🇸 US Stocks": config.watchlist.us_stocks,
     "🇮🇳 Indian Stocks": config.watchlist.indian_stocks,
@@ -571,12 +591,14 @@ asset_categories = {
 }
 
 for cat_name, tickers in asset_categories.items():
-    st.markdown(f"**{cat_name}**")
-    cols = st.columns(5)
+    st.markdown(f"<p style='font-size: 0.9rem; font-weight: 700; margin-bottom: 2px; color: #a855f7;'>{cat_name}</p>", unsafe_allow_html=True)
+    cols = st.columns(8)
     for idx, ticker in enumerate(tickers):
-        col = cols[idx % 5]
+        col = cols[idx % 8]
         is_selected = ticker in st.session_state.selected_tickers
         btn_label = f"✓ {ticker}" if is_selected else ticker
+        
+        # Injecting compact padding styles on the button
         if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="primary" if is_selected else "secondary"):
             if ticker in st.session_state.selected_tickers:
                 st.session_state.selected_tickers.remove(ticker)
@@ -584,8 +606,8 @@ for cat_name, tickers in asset_categories.items():
                 st.session_state.selected_tickers.append(ticker)
             st.rerun()
 
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-col_sub1, col_sub2, col_sub3 = st.columns([1.5, 1.5, 5])
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+col_sub1, col_sub2, col_sub3 = st.columns([1.5, 1.5, 7])
 with col_sub1:
     if st.button("Select Invested", use_container_width=True, key="btn_select_invested_adviser"):
         holdings = get_user_holdings(st.session_state.authenticated_user)
@@ -596,7 +618,7 @@ with col_sub2:
         st.session_state.selected_tickers = []
         st.rerun()
 with col_sub3:
-    st.markdown(f"Selected: **{', '.join(st.session_state.selected_tickers) if st.session_state.selected_tickers else 'None'}**")
+    st.markdown(f"<p style='font-size: 0.9rem; padding-top: 6px;'>Active: <span style='color: #a855f7; font-weight: bold;'>{', '.join(st.session_state.selected_tickers) if st.session_state.selected_tickers else 'None'}</span></p>", unsafe_allow_html=True)
 
 selected_tickers = st.session_state.selected_tickers
 st.markdown("---")
