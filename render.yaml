@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: autonomous-investment-agent
+    runtime: docker
+    plan: free
+    envVars:
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: FINNHUB_KEY
+        sync: false
+      - key: PORT
+        value: 8501
+    healthCheckPath: /_stcore/health

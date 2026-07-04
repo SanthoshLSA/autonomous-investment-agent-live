@@ -1,0 +1,127 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Autonomous Investment Research Agent — Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+# This file controls all aspects of the agent's behavior.
+# Edit values below to customize your investment research setup.
+
+# ─── Asset Watchlist ──────────────────────────────────────────────────────────
+# Tickers to monitor daily. Uses Yahoo Finance format.
+# Indian stocks use .NS suffix (National Stock Exchange)
+# Crypto uses -USD suffix
+watchlist:
+  us_stocks:
+    - AAPL      # Apple
+    - MSFT      # Microsoft
+    - GOOGL     # Alphabet (Google)
+    - AMZN      # Amazon
+    - TSLA      # Tesla
+    - NVDA      # Nvidia
+    - META      # Meta
+    - NFLX      # Netflix
+    - AMD       # AMD
+    - AVGO      # Broadcom
+
+  indian_stocks:
+    - RELIANCE.NS   # Reliance Industries
+    - TCS.NS        # Tata Consultancy Services
+    - INFY.NS       # Infosys
+    - HDFCBANK.NS   # HDFC Bank
+    - TATAMOTORS.NS # Tata Motors
+    - ICICIBANK.NS  # ICICI Bank
+    - BHARTIARTL.NS # Bharti Airtel
+    - SBIN.NS       # State Bank of India
+    - ITC.NS        # ITC Limited
+
+  crypto:
+    - BTC-USD   # Bitcoin
+    - ETH-USD   # Ethereum
+
+  indices:
+    - "^GSPC"   # S&P 500 (benchmark)
+    - "^NSEI"   # NIFTY 50 (Indian benchmark)
+
+# ─── Technical Analysis Settings ──────────────────────────────────────────────
+analysis:
+  lookback_days: 252             # Trading days to fetch (1 year)
+  sma_periods: [20, 50, 200]    # Simple Moving Average windows
+  rsi_period: 14                 # RSI calculation window
+  macd_fast: 12                  # MACD fast EMA period
+  macd_slow: 26                  # MACD slow EMA period
+  macd_signal: 9                 # MACD signal line period
+  bollinger_period: 20           # Bollinger Band window
+  bollinger_std: 2               # Bollinger Band standard deviations
+
+# ─── Risk Analysis Settings ──────────────────────────────────────────────────
+risk:
+  monte_carlo_simulations: 10000  # Number of simulation paths
+  var_confidence: 0.95            # Value at Risk confidence level (95%)
+  cvar_confidence: 0.95           # Conditional VaR confidence level
+  risk_free_rate: 0.05            # Annual risk-free rate (5% — US Treasury)
+  max_drawdown_threshold: 0.25    # Alert if drawdown exceeds 25%
+
+# ─── Sentiment Analysis Settings ─────────────────────────────────────────────
+sentiment:
+  news_lookback_days: 7           # Days of news to analyze
+  max_articles_per_asset: 10      # Max articles per asset
+  decay_factor: 0.3               # Exponential decay rate (higher = faster decay)
+
+# ─── Composite Scoring Weights ───────────────────────────────────────────────
+# Must sum to 1.0
+scoring:
+  volatility_weight: 0.40
+  sentiment_weight: 0.30
+  market_beta_weight: 0.20
+  drawdown_weight: 0.10
+
+# ─── Portfolio Optimization ──────────────────────────────────────────────────
+portfolio:
+  risk_tolerance: conservative    # conservative / moderate / aggressive
+  optimization_method: min_volatility  # min_volatility / max_sharpe / efficient_risk
+  rebalance_threshold: 0.10       # Rebalance if any position drifts >10%
+  rebalance_frequency: quarterly  # weekly / monthly / quarterly
+  max_single_position: 0.25       # No single asset > 25% of portfolio
+  min_position_size: 0.02         # Minimum 2% per asset (avoid dust)
+  initial_capital: 1000000        # Starting capital for backtesting (₹10L / $10K)
+
+# ─── Backtesting Settings ────────────────────────────────────────────────────
+backtest:
+  start_date: "2021-01-01"       # 5+ years of history
+  end_date: null                  # null = today
+  benchmark: "^GSPC"              # Compare against S&P 500
+  transaction_cost: 0.001         # 0.1% per trade (brokerage estimate)
+  slippage: 0.0005                # 0.05% slippage estimate
+
+# ─── LLM Configuration ──────────────────────────────────────────────────────
+llm:
+  provider: openai                # ollama (free/local) or openai (paid/cloud)
+  model: "gpt-4o-mini"            # OpenAI model name
+  fallback_model: "gpt-4o"        # Backup model if primary fails
+  temperature: 0                  # Deterministic outputs
+  max_retries: 3                  # Retry on LLM failures
+  timeout_seconds: 120            # Max wait per LLM call
+
+# ─── Scheduling ──────────────────────────────────────────────────────────────
+schedule:
+  enabled: true
+  run_time: "09:00"               # Daily run time
+  timezone: "Asia/Kolkata"        # IST timezone
+  weekend_skip: true              # Skip Saturday/Sunday
+
+# ─── Notifications ───────────────────────────────────────────────────────────
+notifications:
+  telegram_enabled: false
+  email_enabled: false
+
+# ─── Data Cache ──────────────────────────────────────────────────────────────
+cache:
+  enabled: true
+  ttl_hours: 4                    # Time-to-live for cached data
+  database_path: "cache/market_data.db"
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+logging:
+  level: INFO                     # DEBUG / INFO / WARNING / ERROR
+  format: json                    # json (production) or console (development)
+  file_path: "logs/agent.log"
+  max_file_size_mb: 50
+  backup_count: 5
