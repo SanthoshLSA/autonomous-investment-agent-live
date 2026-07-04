@@ -110,9 +110,6 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
 
 /* Buttons styling */
 .stButton>button {
-    background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
-    color: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
@@ -120,14 +117,32 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
     border-radius: 12px !important;
     padding: 0.75rem 2rem !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.25) !important;
     width: 100% !important;
 }
 
-.stButton>button:hover {
+/* Primary Button Styling */
+.stButton>button[kind="primary"] {
+    background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.25) !important;
+}
+.stButton>button[kind="primary"]:hover {
     transform: scale(1.02) !important;
     box-shadow: 0 0 25px rgba(168, 85, 247, 0.45) !important;
     border-color: rgba(168, 85, 247, 0.5) !important;
+}
+
+/* Secondary Button Styling */
+.stButton>button[kind="secondary"] {
+    background: rgba(12, 8, 22, 0.6) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(168, 85, 247, 0.2) !important;
+}
+.stButton>button[kind="secondary"]:hover {
+    background: rgba(168, 85, 247, 0.15) !important;
+    color: #a855f7 !important;
+    border-color: #a855f7 !important;
 }
 
 /* Glassmorphic Cards */
@@ -546,26 +561,44 @@ with st.expander("Understanding Configuration Parameters"):
     """)
 
 st.markdown("#### Watchlist Assets Selection")
-col_sub1, col_sub2 = st.columns([3, 1])
+
+# Interactive button grid for asset selection
+asset_categories = {
+    "🇺🇸 US Stocks": config.watchlist.us_stocks,
+    "🇮🇳 Indian Stocks": config.watchlist.indian_stocks,
+    "🪙 Crypto": config.watchlist.crypto,
+    "📊 Indices": config.watchlist.indices
+}
+
+for cat_name, tickers in asset_categories.items():
+    st.markdown(f"**{cat_name}**")
+    cols = st.columns(5)
+    for idx, ticker in enumerate(tickers):
+        col = cols[idx % 5]
+        is_selected = ticker in st.session_state.selected_tickers
+        btn_label = f"✓ {ticker}" if is_selected else ticker
+        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="primary" if is_selected else "secondary"):
+            if ticker in st.session_state.selected_tickers:
+                st.session_state.selected_tickers.remove(ticker)
+            else:
+                st.session_state.selected_tickers.append(ticker)
+            st.rerun()
+
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+col_sub1, col_sub2, col_sub3 = st.columns([1.5, 1.5, 5])
 with col_sub1:
-    watchlist = config.watchlist.all_tickers
-    selected_tickers = st.multiselect(
-        "Watchlist Assets Selector",
-        watchlist,
-        default=st.session_state.selected_tickers,
-        label_visibility="collapsed",
-    )
-    st.session_state.selected_tickers = selected_tickers
-with col_sub2:
-    if st.button(
-        "Select Invested",
-        use_container_width=True,
-        key="btn_select_invested_adviser",
-    ):
+    if st.button("Select Invested", use_container_width=True, key="btn_select_invested_adviser"):
         holdings = get_user_holdings(st.session_state.authenticated_user)
         st.session_state.selected_tickers = [pos["ticker"] for pos in holdings]
         st.rerun()
+with col_sub2:
+    if st.button("Clear All", use_container_width=True, key="btn_clear_all_adviser"):
+        st.session_state.selected_tickers = []
+        st.rerun()
+with col_sub3:
+    st.markdown(f"Selected: **{', '.join(st.session_state.selected_tickers) if st.session_state.selected_tickers else 'None'}**")
 
+selected_tickers = st.session_state.selected_tickers
 st.markdown("---")
 
 col_act1, col_act2 = st.columns(2)
