@@ -144,6 +144,14 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
     border-color: rgba(168, 85, 247, 0.4) !important;
 }
 
+/* Selected Asset Button (Tooltip Hack) */
+div[data-testid="stTooltipHoverTarget"] > button {
+    background: transparent !important;
+    border: 1px solid #22c55e !important;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.4) !important;
+    color: #4ade80 !important;
+}
+
 /* Radio nav strip */
 .stRadio [data-testid="stWidgetLabel"] { display: none !important; }
 .stRadio > div { flex-direction: row !important; gap: 12px !important; }
@@ -251,7 +259,7 @@ div[data-testid="stDataFrame"] {
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ── Compact App Title ───────────────────────────────────────────────────────
-st.markdown('<p class="gradient-header" style="font-size:1.5rem; margin:0; padding:4px 0 2px 0; line-height:1.2;">⚡ AUTONOMOUS INVESTMENT ADVISER</p>', unsafe_allow_html=True)
+st.markdown('<p class="gradient-header" style="font-size:1.5rem; margin:0; padding:4px 0 2px 0; line-height:1.2;">AUTONOMOUS INVESTMENT ADVISER</p>', unsafe_allow_html=True)
 
 
 # ── Global Authentication Gate ───────────────────────────────────────────────
@@ -308,7 +316,7 @@ with col_user:
     with col_u1:
         st.markdown(
             f"<p style='font-size:0.8rem; color:#94a3b8; padding-top:8px; text-align:right;'>"
-            f"👤 <b style='color:#c4b5fd;'>{st.session_state.authenticated_user}</b></p>",
+            f"<b style='color:#c4b5fd;'>{st.session_state.authenticated_user}</b></p>",
             unsafe_allow_html=True
         )
     with col_u2:
@@ -574,7 +582,7 @@ if workspace_page == "Paper Trading Workspace":
 
 
 # ── AI Adviser Workspace ─────────────────────────────────────────────────────
-with st.expander("⚙️ Config — Risk Stance & Optimization", expanded=False):
+with st.expander("Config — Risk Stance & Optimization", expanded=False):
     st.markdown(
         f"**Stance** `{config.portfolio.risk_tolerance.upper()}` — capital preservation, low-variance stable assets.  "
         f"**Optimizer** `{config.portfolio.optimization_method}` — minimizes portfolio variance via historical covariance."
@@ -584,10 +592,10 @@ st.markdown("#### Watchlist Assets Selection")
 
 # Interactive button grid for asset selection - Compact 8-column layout
 asset_categories = {
-    "🇺🇸 US Stocks": config.watchlist.us_stocks,
-    "🇮🇳 Indian Stocks": config.watchlist.indian_stocks,
-    "🪙 Crypto": config.watchlist.crypto,
-    "📊 Indices": config.watchlist.indices
+    "US Stocks": config.watchlist.us_stocks,
+    "Indian Stocks": config.watchlist.indian_stocks,
+    "Crypto": config.watchlist.crypto,
+    "Indices": config.watchlist.indices
 }
 
 for cat_name, tickers in asset_categories.items():
@@ -596,10 +604,10 @@ for cat_name, tickers in asset_categories.items():
     for idx, ticker in enumerate(tickers):
         col = cols[idx % 8]
         is_selected = ticker in st.session_state.selected_tickers
-        btn_label = f"✓ {ticker}" if is_selected else ticker
+        btn_label = ticker
         
         # Injecting compact padding styles on the button
-        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="primary" if is_selected else "secondary"):
+        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="secondary", help="Selected Asset" if is_selected else None):
             if ticker in st.session_state.selected_tickers:
                 st.session_state.selected_tickers.remove(ticker)
             else:
