@@ -146,10 +146,11 @@ h1, h2, h3, h4, h5, h6, [data-testid="stHeader"] {
 
 /* Selected Asset Button (Tooltip Hack) */
 div[data-testid="stTooltipHoverTarget"] > button {
-    background: transparent !important;
-    border: 1px solid #22c55e !important;
-    box-shadow: 0 0 12px rgba(34, 197, 94, 0.4) !important;
-    color: #4ade80 !important;
+    background: rgba(0, 255, 102, 0.08) !important;
+    border: 2px solid #00ff66 !important;
+    box-shadow: 0 0 18px rgba(0, 255, 102, 0.5) !important;
+    color: #00ff66 !important;
+    font-weight: 700 !important;
 }
 
 /* Radio nav strip */
