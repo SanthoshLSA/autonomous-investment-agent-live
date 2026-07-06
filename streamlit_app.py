@@ -322,10 +322,13 @@ with col_nav:
         label_visibility="collapsed",
     )
 with col_stance:
+    # Read dynamic stances from session state if configured by user
+    current_stance = st.session_state.get("risk_stance", config.portfolio.risk_tolerance).upper()
+    current_optimizer = st.session_state.get("optimizer_method", config.portfolio.optimization_method)
     st.markdown(
         f"<p style='font-size:0.8rem; color:#64748b; padding-top:8px;'>"
-        f"Stance: <b style='color:#a855f7'>{config.portfolio.risk_tolerance.upper()}</b> "
-        f"&nbsp;·&nbsp; Optimizer: <b style='color:#a855f7'>{config.portfolio.optimization_method}</b></p>",
+        f"Stance: <b style='color:#a855f7'>{current_stance}</b> "
+        f"&nbsp;·&nbsp; Optimizer: <b style='color:#a855f7'>{current_optimizer}</b></p>",
         unsafe_allow_html=True
     )
 with col_user:
@@ -594,15 +597,66 @@ if workspace_page == "Paper Trading Workspace":
             else:
                 st.error("Failed to reset portfolio.")
 
+    # Paper Trading Workspace funny disclaimer
+    st.markdown("---")
+    st.warning(
+        "🤣 **POCKET PROTECTOR DISCLAIMER:** This paper-money simulator is for practice and mental gymnastics. "
+        "We are absolutely *not* liable for any real-world coins you lose, your spouse leaving you over bad options trades, "
+        "or your cat judging your asset allocation. Trading with actual money based on these results might make you "
+        "poor enough to live in a server rack. Invest at your own risk!"
+    )
     st.stop()
 
 
 # ── AI Adviser Workspace ─────────────────────────────────────────────────────
-with st.expander("Config — Risk Stance & Optimization", expanded=False):
-    st.markdown(
-        f"**Stance** `{config.portfolio.risk_tolerance.upper()}` — capital preservation, low-variance stable assets.  "
-        f"**Optimizer** `{config.portfolio.optimization_method}` — minimizes portfolio variance via historical covariance."
-    )
+# Initialize custom selection states for stance and optimizer
+if "risk_stance" not in st.session_state:
+    st.session_state.risk_stance = config.portfolio.risk_tolerance
+if "optimizer_method" not in st.session_state:
+    st.session_state.optimizer_method = config.portfolio.optimization_method
+
+with st.expander("🛠️ Advisor Engine Settings (Risk Stance & Portfolio Optimizer)", expanded=True):
+    col_cfg1, col_cfg2 = st.columns(2)
+    with col_cfg1:
+        stance_sel = st.selectbox(
+            "AI Risk Stance",
+            ["conservative", "moderate", "aggressive"],
+            index=["conservative", "moderate", "aggressive"].index(st.session_state.risk_stance),
+            help="Choose the model's tolerance for volatility."
+        )
+        if stance_sel != st.session_state.risk_stance:
+            st.session_state.risk_stance = stance_sel
+            st.rerun()
+
+        st.markdown(
+            "### ⚖️ Risk Stance Explainer\n"
+            "- **Conservative**: Minimizes drawdown risk. LLM prioritizes blue-chip assets and preserves a high cash cushion. Perfect if you cry when the market dips 1%.\n"
+            "- **Moderate**: A balanced approach. Attempts to beat inflation while keeping you from pulling your hair out during downturns.\n"
+            "- **Aggressive**: Maximum portfolio expansion. LLM chases high-momentum crypto and tech stocks. Warning: You might end up on the moon, or in a ditch."
+        )
+
+    with col_cfg2:
+        opt_sel = st.selectbox(
+            "Portfolio Optimization Method",
+            ["min_volatility", "max_sharpe"],
+            index=["min_volatility", "max_sharpe"].index(st.session_state.optimizer_method),
+            help="Choose the algorithm to determine target weights."
+        )
+        if opt_sel != st.session_state.optimizer_method:
+            st.session_state.optimizer_method = opt_sel
+            st.rerun()
+
+        st.markdown(
+            "### 🧮 Optimizer Explainer\n"
+            "- **Minimum Volatility (`min_volatility`)**: Solves for weights that result in the lowest possible overall historical covariance. "
+            "It builds the 'smoothest ride' portfolio, prioritizing assets that offset each other's swings.\n"
+            "- **Maximum Sharpe Ratio (`max_sharpe`)**: Maximizes return per unit of risk. Great for return maximizers "
+            "but can load up on a single volatile asset if it has had stellar historical returns."
+        )
+
+    # Sync selections to config object
+    config.portfolio.risk_tolerance = st.session_state.risk_stance
+    config.portfolio.optimization_method = st.session_state.optimizer_method
 
 st.markdown("#### Watchlist Assets Selection")
 
@@ -657,6 +711,10 @@ with col_act1:
         else:
             with st.spinner("Executing sequential multi-agent LangGraph scan..."):
                 try:
+                    # Ensure active selections are used during scan compilation
+                    config.portfolio.risk_tolerance = st.session_state.risk_stance
+                    config.portfolio.optimization_method = st.session_state.optimizer_method
+                    
                     st.session_state.graph = build_investment_graph(config, get_api_keys())
                     results = run_investment_analysis(
                         st.session_state.graph, selected_tickers, st.session_state.thread_id
@@ -833,3 +891,12 @@ if st.session_state.analysis_results:
                 st.warning("Insufficient prices dataframe generated.")
         else:
             st.warning("No market data to backtest.")
+
+    # AI Adviser Workspace funny disclaimer
+    st.markdown("---")
+    st.warning(
+        "🤣 **THE LEGAL SHIELD OF SHAME:** Look, our AI is extremely smart, but it doesn't pay taxes, buy groceries, "
+        "or face consequences. If you follow this automated advice and the market goes sideways, we are absolutely "
+        "*not* liable. Do not sue us if you end up trading your luxury sedan for a public transit pass. "
+        "Make your own decisions or blame the cat, but don't blame this code. Invest at your own risk!"
+    )
