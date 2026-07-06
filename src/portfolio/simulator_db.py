@@ -71,19 +71,27 @@ def _fix_mongo_uri(uri: str) -> str:
     return f"{scheme}{encoded_username}:{encoded_password}@{host_part}"
 
 
+_MONGO_CLIENT = None
+
 def get_mongo_db() -> Any:
-    """Returns the MongoDB database object if MONGO_URI is configured."""
+    """Returns the MongoDB database object if MONGO_URI is configured. Caches connection for performance."""
+    global _MONGO_CLIENT
     if MONGO_URI:
         try:
-            safe_uri = _fix_mongo_uri(MONGO_URI)
-            client = MongoClient(safe_uri, serverSelectionTimeoutMS=5000)
-            # Default database name is 'portfolio_db'
-            db = client.get_database("portfolio_db")
-            # Ping to verify connection is live
-            client.admin.command('ping')
-            return db
+            if _MONGO_CLIENT is None:
+                safe_uri = _fix_mongo_uri(MONGO_URI)
+                # Use a cached global client and tune connection parameters for responsiveness
+                _MONGO_CLIENT = MongoClient(
+                    safe_uri, 
+                    serverSelectionTimeoutMS=2500,
+                    maxPoolSize=50,
+                    minPoolSize=10,
+                    retryWrites=True
+                )
+            return _MONGO_CLIENT.get_database("portfolio_db")
         except Exception:
             logger.exception("Failed to connect to MongoDB — check MONGO_URI secret")
+            _MONGO_CLIENT = None
     return None
 
 
