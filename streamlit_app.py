@@ -81,6 +81,8 @@ if "authenticated_user" not in st.session_state:
         st.session_state.authenticated_user = None
 if "selected_tickers" not in st.session_state:
     st.session_state.selected_tickers = []
+if "auth_page" not in st.session_state:
+    st.session_state.auth_page = "login"
 
 
 # Custom CSS to match santhoshlsa.vercel.app visual layout
@@ -281,33 +283,44 @@ st.markdown('<p class="gradient-header" style="font-size:1.5rem; margin:0; paddi
 
 # ── Global Authentication Gate ───────────────────────────────────────────────
 if st.session_state.authenticated_user is None:
-    st.info(
-        "Welcome! Please sign in or register a new account to unlock the Investment Adviser Desk."
-    )
-
-    col_auth1, col_auth2 = st.columns(2)
-    with col_auth1:
-        st.markdown("#### Sign In")
-        gate_username = st.text_input("Username", key="gate_user_field").strip()
-        gate_password = st.text_input("Password", type="password", key="gate_pass_field")
-        if st.button("Sign In", key="gate_signin_btn", type="primary", use_container_width=True):
-            if verify_user(gate_username, gate_password):
-                st.session_state.authenticated_user = gate_username
-                st.query_params["user"] = gate_username
+    if st.session_state.auth_page == "login":
+        st.markdown("<h3 style='text-align: center; margin-bottom: 20px;'>Sign In</h3>", unsafe_allow_html=True)
+        col_login_center = st.columns([1, 2, 1])[1]
+        with col_login_center:
+            gate_username = st.text_input("Username", key="gate_user_field").strip()
+            gate_password = st.text_input("Password", type="password", key="gate_pass_field")
+            if st.button("Sign In", key="gate_signin_btn", type="primary", use_container_width=True):
+                if verify_user(gate_username, gate_password):
+                    st.session_state.authenticated_user = gate_username
+                    st.query_params["user"] = gate_username
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password.")
+            
+            st.markdown("<p style='text-align: center; margin-top: 15px;'>New to the platform?</p>", unsafe_allow_html=True)
+            if st.button("Register New User", key="switch_to_register_btn", use_container_width=True):
+                st.session_state.auth_page = "register"
                 st.rerun()
-            else:
-                st.error("Invalid username or password.")
-    with col_auth2:
-        st.markdown("#### Create Account")
-        reg_username = st.text_input("New Username", key="gate_reg_user_field").strip()
-        reg_password = st.text_input("New Password", type="password", key="gate_reg_pass_field")
-        if st.button("Register Account", key="gate_register_btn", use_container_width=True):
-            if not reg_username or not reg_password:
-                st.error("Username and Password cannot be empty.")
-            elif create_user(reg_username, reg_password):
-                st.success("Account created successfully! Please Sign In.")
-            else:
-                st.error("Username taken or database error.")
+    else:
+        st.markdown("<h3 style='text-align: center; margin-bottom: 20px;'>Register Account</h3>", unsafe_allow_html=True)
+        col_reg_center = st.columns([1, 2, 1])[1]
+        with col_reg_center:
+            reg_username = st.text_input("New Username", key="gate_reg_user_field").strip()
+            reg_password = st.text_input("New Password", type="password", key="gate_reg_pass_field")
+            if st.button("Register Account", key="gate_register_btn", type="primary", use_container_width=True):
+                if not reg_username or not reg_password:
+                    st.error("Username and Password cannot be empty.")
+                elif create_user(reg_username, reg_password):
+                    st.success("Account created successfully! Switching to sign in.")
+                    st.session_state.auth_page = "login"
+                    st.rerun()
+                else:
+                    st.error("Username taken or database error.")
+            
+            st.markdown("<p style='text-align: center; margin-top: 15px;'>Already have an account?</p>", unsafe_allow_html=True)
+            if st.button("Back to Login", key="switch_to_login_btn", use_container_width=True):
+                st.session_state.auth_page = "login"
+                st.rerun()
 
     st.stop()
 
@@ -357,6 +370,7 @@ if workspace_page == "Paper Trading Workspace":
         if st.button(
             "Refresh Data", use_container_width=True, type="secondary", key="trading_refresh_btn"
         ):
+            st.cache_data.clear()
             st.rerun()
     username = st.session_state.authenticated_user
 
@@ -396,6 +410,7 @@ if workspace_page == "Paper Trading Workspace":
                 "Current Live Price (INR)": f"{price:,.2f} INR",
                 "Total Value (INR)": f"{mkt_val:,.2f} INR",
                 "Unrealized P&L (INR)": f"{pnl:+,.2f} INR ({pnl_pct:+.2f}%)",
+                "_raw_pnl": pnl
             }
         )
 
@@ -408,7 +423,18 @@ if workspace_page == "Paper Trading Workspace":
     col_m1.metric("Cash Balance", f"{cash:,.2f} INR")
     col_m2.metric("Portfolio Value", f"{total_value:,.2f} INR")
     col_m3.metric("Total Invested", f"{holdings_cost:,.2f} INR")
-    col_m4.metric("Unrealized P&L", f"{net_pnl:+,.2f} INR ({pnl_pct:+.2f}%)")
+    
+    # Custom colored HTML container for Unrealized P&L
+    pnl_color = "#10b981" if net_pnl >= 0 else "#ef4444"
+    st.markdown(
+        f"""
+        <div style='background: rgba(12, 8, 22, 0.6); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 16px; padding: 1rem 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);'>
+            <p style='margin: 0; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-family: Space Grotesk, sans-serif; font-weight: 700;'>Unrealized P&L</p>
+            <p style='margin: 5px 0 0 0; font-size: 1.8rem; font-weight: 700; color: {pnl_color}; font-family: Space Grotesk, sans-serif;'>{net_pnl:+,.2f} INR ({pnl_pct:+.2f}%)</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     st.markdown("---")
 
     # Rebalance to AI Recommendations Button
@@ -507,7 +533,21 @@ if workspace_page == "Paper Trading Workspace":
     with col_left:
         st.markdown("#### Portfolio Holdings")
         if holdings_data:
-            st.dataframe(pd.DataFrame(holdings_data), use_container_width=True, hide_index=True)
+            df = pd.DataFrame(holdings_data)
+            
+            # Highlight P&L cells using style mapping function
+            def color_pnl(val):
+                if isinstance(val, str) and "INR" in val:
+                    # Retrieve raw pnl from row context or parse string sign
+                    if val.startswith("-"):
+                        return "color: #ef4444; font-weight: bold;"
+                    else:
+                        return "color: #10b981; font-weight: bold;"
+                return ""
+            
+            styled_df = df.style.map(color_pnl, subset=["Unrealized P&L (INR)"])
+            # Render dataframe but hide the private raw_pnl helper column
+            st.dataframe(styled_df, use_container_width=True, hide_index=True, column_order=["Asset", "Shares Owned", "Avg Purchase Price (INR)", "Current Live Price (INR)", "Total Value (INR)", "Unrealized P&L (INR)"])
         else:
             st.info(
                 "No active holdings inside your portfolio. Execute orders on the right to populate your holdings."
@@ -600,8 +640,8 @@ if workspace_page == "Paper Trading Workspace":
     # Paper Trading Workspace funny disclaimer
     st.markdown("---")
     st.warning(
-        "🤣 **POCKET PROTECTOR DISCLAIMER:** This paper-money simulator is for practice and mental gymnastics. "
-        "We are absolutely *not* liable for any real-world coins you lose, your spouse leaving you over bad options trades, "
+        "POCKET PROTECTOR DISCLAIMER: This paper-money simulator is for practice and mental gymnastics. "
+        "We are absolutely not liable for any real-world coins you lose, your spouse leaving you over bad options trades, "
         "or your cat judging your asset allocation. Trading with actual money based on these results might make you "
         "poor enough to live in a server rack. Invest at your own risk!"
     )
@@ -615,7 +655,7 @@ if "risk_stance" not in st.session_state:
 if "optimizer_method" not in st.session_state:
     st.session_state.optimizer_method = config.portfolio.optimization_method
 
-with st.expander("🛠️ Advisor Engine Settings (Risk Stance & Portfolio Optimizer)", expanded=True):
+with st.expander("Advisor Engine Settings (Risk Stance & Portfolio Optimizer)", expanded=True):
     col_cfg1, col_cfg2 = st.columns(2)
     with col_cfg1:
         stance_sel = st.selectbox(
@@ -629,7 +669,7 @@ with st.expander("🛠️ Advisor Engine Settings (Risk Stance & Portfolio Optim
             st.rerun()
 
         st.markdown(
-            "### ⚖️ Risk Stance Explainer\n"
+            "### Risk Stance Explainer\n"
             "- **Conservative**: Minimizes drawdown risk. LLM prioritizes blue-chip assets and preserves a high cash cushion. Perfect if you cry when the market dips 1%.\n"
             "- **Moderate**: A balanced approach. Attempts to beat inflation while keeping you from pulling your hair out during downturns.\n"
             "- **Aggressive**: Maximum portfolio expansion. LLM chases high-momentum crypto and tech stocks. Warning: You might end up on the moon, or in a ditch."
@@ -647,7 +687,7 @@ with st.expander("🛠️ Advisor Engine Settings (Risk Stance & Portfolio Optim
             st.rerun()
 
         st.markdown(
-            "### 🧮 Optimizer Explainer\n"
+            "### Optimizer Explainer\n"
             "- **Minimum Volatility (`min_volatility`)**: Solves for weights that result in the lowest possible overall historical covariance. "
             "It builds the 'smoothest ride' portfolio, prioritizing assets that offset each other's swings.\n"
             "- **Maximum Sharpe Ratio (`max_sharpe`)**: Maximizes return per unit of risk. Great for return maximizers "
@@ -895,8 +935,8 @@ if st.session_state.analysis_results:
     # AI Adviser Workspace funny disclaimer
     st.markdown("---")
     st.warning(
-        "🤣 **THE LEGAL SHIELD OF SHAME:** Look, our AI is extremely smart, but it doesn't pay taxes, buy groceries, "
+        "THE LEGAL SHIELD OF SHAME: Look, our AI is extremely smart, but it doesn't pay taxes, buy groceries, "
         "or face consequences. If you follow this automated advice and the market goes sideways, we are absolutely "
-        "*not* liable. Do not sue us if you end up trading your luxury sedan for a public transit pass. "
+        "not liable. Do not sue us if you end up trading your luxury sedan for a public transit pass. "
         "Make your own decisions or blame the cat, but don't blame this code. Invest at your own risk!"
     )
