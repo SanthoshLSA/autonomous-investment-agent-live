@@ -424,13 +424,13 @@ if workspace_page == "Paper Trading Workspace":
     col_m2.metric("Portfolio Value", f"{total_value:,.2f} INR")
     col_m3.metric("Total Invested", f"{holdings_cost:,.2f} INR")
     
-    # Custom colored HTML container for Unrealized P&L
+    # Render Unrealized P&L in the 4th column to align with other metrics
     pnl_color = "#10b981" if net_pnl >= 0 else "#ef4444"
-    st.markdown(
+    col_m4.markdown(
         f"""
-        <div style='background: rgba(12, 8, 22, 0.6); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 16px; padding: 1rem 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);'>
+        <div style='background: rgba(12, 8, 22, 0.6); border: 1px solid rgba(168, 85, 247, 0.15); border-radius: 16px; padding: 1.22rem 1.22rem; backdrop-filter: blur(12px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); min-height: 104px;'>
             <p style='margin: 0; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-family: Space Grotesk, sans-serif; font-weight: 700;'>Unrealized P&L</p>
-            <p style='margin: 5px 0 0 0; font-size: 1.8rem; font-weight: 700; color: {pnl_color}; font-family: Space Grotesk, sans-serif;'>{net_pnl:+,.2f} INR ({pnl_pct:+.2f}%)</p>
+            <p style='margin: 5px 0 0 0; font-size: 1.45rem; font-weight: 700; color: {pnl_color}; font-family: Space Grotesk, sans-serif;'>{net_pnl:+,.2f} <span style='font-size:0.9rem;'>INR</span><br><span style='font-size:1.0rem;'>({pnl_pct:+.2f}%)</span></p>
         </div>
         """,
         unsafe_allow_html=True
