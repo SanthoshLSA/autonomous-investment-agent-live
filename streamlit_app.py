@@ -10,6 +10,14 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+from src.portfolio.valuation_engine import get_latest_price
+
+# Cached price fetch (1 minute TTL)
+@st.cache_data(ttl=60)
+def cached_price(ticker: str) -> float:
+    """Fetch live price with caching to avoid repeated yfinance calls."""
+    return get_latest_price(ticker)
+
 # Configure page settings
 st.set_page_config(
     page_title="Investment Agent Dashboard",
@@ -48,10 +56,12 @@ config = get_config()
 api_keys = get_api_keys()
 
 # Initialize DB tables
-try:
-    init_db()
-except Exception as e:
-    st.error(f"Database Connection Error: {str(e)}")
+if not st.session_state.get("db_initialized", False):
+    try:
+        init_db()
+        st.session_state.db_initialized = True
+    except Exception as e:
+        st.error(f"Database Connection Error: {str(e)}")
 
 # Ensure keys exist in session state to handle page refreshes
 if "graph" not in st.session_state:
@@ -352,7 +362,6 @@ if workspace_page == "Paper Trading Workspace":
     holdings = get_user_holdings(username)
 
     # Calculate valuations
-    from src.portfolio.valuation_engine import get_latest_price
 
     holdings_value = 0.0
     holdings_cost = 0.0
@@ -364,7 +373,7 @@ if workspace_page == "Paper Trading Workspace":
         cost = pos["avg_cost"]
 
         # Get live price
-        price = get_latest_price(ticker)
+        price = cached_price(ticker)
         if price <= 0:
             price = cost
 
@@ -547,14 +556,14 @@ if workspace_page == "Paper Trading Workspace":
         )
 
         # Fetch live price to display estimated value
-        live_price = get_latest_price(selected_ticker)
-        est_value = shares * live_price
+        price = cached_price(selected_ticker)
+        est_value = shares * price
 
-        st.write(f"Estimated Price: **{live_price:,.2f} INR**")
+        st.write(f"Estimated Price: **{price:,.2f} INR**")
         st.write(f"Estimated Order Value: **{est_value:,.2f} INR**")
 
         if st.button("Submit Order", type="primary", use_container_width=True):
-            trade_result = execute_trade(username, selected_ticker, action, shares, live_price)
+            trade_result = execute_trade(username, selected_ticker, action, shares, price)
             if trade_result == "SUCCESS":
                 st.success(f"Order executed successfully: {action} {shares} {selected_ticker}")
                 st.rerun()
