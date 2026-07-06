@@ -606,3 +606,7 @@ yfinance==1.5.1
     # via autonomous-investment-agent (pyproject.toml)
 zstandard==0.25.0
     # via langsmith
+pymongo==4.17.0
+    # via autonomous-investment-agent (pyproject.toml)
+dnspython==2.8.0
+    # via pymongo
