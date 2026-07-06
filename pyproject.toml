@@ -47,6 +47,8 @@ dependencies = [
     # CLI
     "click>=8.1",
     "xhtml2pdf>=0.2.14",
+    "pymongo>=4.0",
+    "dnspython>=2.0",
 ]
 
 [project.optional-dependencies]

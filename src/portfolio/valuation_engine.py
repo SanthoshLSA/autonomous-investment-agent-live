@@ -11,7 +11,13 @@ from datetime import datetime, timedelta
 import yfinance as yf
 
 from src.logger import get_logger
-from src.portfolio.simulator_db import get_db_connection, get_user_cash, get_user_holdings
+from src.portfolio.simulator_db import (
+    get_most_recent_snapshot,
+    get_snapshot_by_date,
+    get_user_cash,
+    get_user_holdings,
+    upsert_daily_snapshot,
+)
 
 logger = get_logger(__name__)
 
@@ -56,37 +62,26 @@ def run_daily_valuation_for_user(username: str) -> bool:
 
         total_value = cash + holdings_value
 
-        conn = get_db_connection()
-        with conn:
-            # Check for yesterday's snapshot to compute daily PnL
-            yesterday = today - timedelta(days=1)
-            cursor = conn.execute(
-                "SELECT total_value FROM daily_snapshots WHERE username = ? AND date = ?",
-                (username_clean, str(yesterday)),
-            )
-            prev_row = cursor.fetchone()
+        # Check for yesterday's snapshot to compute daily PnL
+        yesterday = today - timedelta(days=1)
+        prev_snap = get_snapshot_by_date(username_clean, str(yesterday))
 
-            # If yesterday doesn't exist, search for the most recent snapshot
-            if not prev_row:
-                cursor = conn.execute(
-                    "SELECT total_value FROM daily_snapshots WHERE username = ? ORDER BY date DESC LIMIT 1",
-                    (username_clean,),
-                )
-                prev_row = cursor.fetchone()
+        # If yesterday doesn't exist, search for the most recent snapshot
+        if not prev_snap:
+            prev_snap = get_most_recent_snapshot(username_clean)
 
-            prev_total = float(prev_row[0]) if prev_row else 1000000.0  # Initial starting amount
-            daily_pnl = total_value - prev_total
+        prev_total = prev_snap["total_value"] if prev_snap else 1000000.0  # Initial starting amount
+        daily_pnl = total_value - prev_total
 
-            # Upsert today's snapshot (using INSERT OR REPLACE in SQLite)
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO daily_snapshots (username, date, total_value, cash, holdings_value, daily_pnl)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (username_clean, str(today), total_value, cash, holdings_value, daily_pnl),
-            )
-
-        conn.close()
+        # Upsert today's snapshot
+        upsert_daily_snapshot(
+            username_clean,
+            str(today),
+            total_value,
+            cash,
+            holdings_value,
+            daily_pnl,
+        )
         logger.info(
             "Daily snapshot updated",
             username=username_clean,
