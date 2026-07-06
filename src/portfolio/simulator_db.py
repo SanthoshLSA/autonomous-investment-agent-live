@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sqlite3
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -33,15 +35,55 @@ def is_mongo_active() -> bool:
     return MONGO_URI is not None
 
 
+def _fix_mongo_uri(uri: str) -> str:
+    """Auto URL-encode special characters (e.g. @) in MongoDB URI credentials.
+
+    Uses rfind('@') to correctly detect the last @ separator between
+    credentials and the host, so passwords containing @ are handled safely.
+    """
+    scheme_match = re.match(r'^(mongodb(?:\+srv)?://)(.*)', uri)
+    if not scheme_match:
+        return uri
+
+    scheme = scheme_match.group(1)
+    rest = scheme_match.group(2)
+
+    # The LAST @ separates credentials from the host
+    last_at = rest.rfind('@')
+    if last_at == -1:
+        return uri  # No credentials present
+
+    credentials = rest[:last_at]
+    host_part = rest[last_at + 1:]
+
+    # Split into username and password at the FIRST colon
+    first_colon = credentials.find(':')
+    if first_colon == -1:
+        return uri  # No password present
+
+    username = credentials[:first_colon]
+    password = credentials[first_colon + 1:]
+
+    # Only encode if there are unencoded special characters
+    encoded_username = urllib.parse.quote_plus(username)
+    encoded_password = urllib.parse.quote_plus(password)
+
+    return f"{scheme}{encoded_username}:{encoded_password}@{host_part}"
+
+
 def get_mongo_db() -> Any:
     """Returns the MongoDB database object if MONGO_URI is configured."""
     if MONGO_URI:
         try:
-            client = MongoClient(MONGO_URI)
+            safe_uri = _fix_mongo_uri(MONGO_URI)
+            client = MongoClient(safe_uri, serverSelectionTimeoutMS=5000)
             # Default database name is 'portfolio_db'
-            return client.get_database("portfolio_db")
+            db = client.get_database("portfolio_db")
+            # Ping to verify connection is live
+            client.admin.command('ping')
+            return db
         except Exception:
-            logger.exception("Failed to connect to MongoDB")
+            logger.exception("Failed to connect to MongoDB — check MONGO_URI secret")
     return None
 
 
