@@ -5,7 +5,8 @@ Streamlit Web Dashboard for the Autonomous Investment Research Agent.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, time as dt_time
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -17,6 +18,42 @@ from src.portfolio.valuation_engine import get_latest_price
 def cached_price(ticker: str) -> float:
     """Fetch live price with caching to avoid repeated yfinance calls."""
     return get_latest_price(ticker)
+
+
+def get_market_status(ticker: str) -> str:
+    """Returns 'OPEN' or 'CLOSED' based on the exchange trading hours for the given ticker."""
+    now_utc = datetime.now(tz=ZoneInfo("UTC"))
+    weekday = now_utc.weekday()  # 0=Mon, 6=Sun
+    current_time = now_utc.time()
+
+    # Crypto trades 24/7
+    if ticker.endswith("-USD") or ticker.endswith("-USDT"):
+        return "OPEN"
+
+    # Indices  (^GSPC = S&P500/NYSE hours, ^NSEI = NSE hours)
+    if ticker.startswith("^"):
+        if "NSEI" in ticker or "NIFTY" in ticker or "BSE" in ticker:
+            # NSE: Mon-Fri 03:45-10:00 UTC
+            if weekday < 5 and dt_time(3, 45) <= current_time <= dt_time(10, 0):
+                return "OPEN"
+            return "CLOSED"
+        else:
+            # US indices (NYSE/NASDAQ): Mon-Fri 13:30-20:00 UTC
+            if weekday < 5 and dt_time(13, 30) <= current_time <= dt_time(20, 0):
+                return "OPEN"
+            return "CLOSED"
+
+    # Indian stocks (.NS or .BO)
+    if ticker.endswith(".NS") or ticker.endswith(".BO"):
+        # NSE/BSE: Mon-Fri 03:45-10:00 UTC
+        if weekday < 5 and dt_time(3, 45) <= current_time <= dt_time(10, 0):
+            return "OPEN"
+        return "CLOSED"
+
+    # US stocks (default): Mon-Fri 13:30-20:00 UTC
+    if weekday < 5 and dt_time(13, 30) <= current_time <= dt_time(20, 0):
+        return "OPEN"
+    return "CLOSED"
 
 # Configure page settings
 st.set_page_config(
@@ -402,9 +439,12 @@ if workspace_page == "Paper Trading Workspace":
         holdings_value += mkt_val
         holdings_cost += pos_cost
 
+        mkt_status = get_market_status(ticker)
+
         holdings_data.append(
             {
                 "Asset": ticker,
+                "Market": mkt_status,
                 "Shares Owned": f"{shares:.4f}",
                 "Avg Purchase Price (INR)": f"{cost:,.2f} INR",
                 "Current Live Price (INR)": f"{price:,.2f} INR",
@@ -535,19 +575,31 @@ if workspace_page == "Paper Trading Workspace":
         if holdings_data:
             df = pd.DataFrame(holdings_data)
             
-            # Highlight P&L cells using style mapping function
+            # Highlight P&L cells and Market status
             def color_pnl(val):
                 if isinstance(val, str) and "INR" in val:
-                    # Retrieve raw pnl from row context or parse string sign
                     if val.startswith("-"):
                         return "color: #ef4444; font-weight: bold;"
                     else:
                         return "color: #10b981; font-weight: bold;"
                 return ""
-            
-            styled_df = df.style.map(color_pnl, subset=["Unrealized P&L (INR)"])
-            # Render dataframe but hide the private raw_pnl helper column
-            st.dataframe(styled_df, use_container_width=True, hide_index=True, column_order=["Asset", "Shares Owned", "Avg Purchase Price (INR)", "Current Live Price (INR)", "Total Value (INR)", "Unrealized P&L (INR)"])
+
+            def color_market(val):
+                if val == "OPEN":
+                    return "color: #10b981; font-weight: 700; background: rgba(16,185,129,0.12); border-radius: 6px;"
+                return "color: #ef4444; font-weight: 700; background: rgba(239,68,68,0.10); border-radius: 6px;"
+
+            styled_df = (
+                df.style
+                .map(color_pnl, subset=["Unrealized P&L (INR)"])
+                .map(color_market, subset=["Market"])
+            )
+            st.dataframe(
+                styled_df,
+                use_container_width=True,
+                hide_index=True,
+                column_order=["Asset", "Market", "Shares Owned", "Avg Purchase Price (INR)", "Current Live Price (INR)", "Total Value (INR)", "Unrealized P&L (INR)"]
+            )
         else:
             st.info(
                 "No active holdings inside your portfolio. Execute orders on the right to populate your holdings."
