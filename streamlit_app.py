@@ -79,6 +79,7 @@ from src.portfolio.simulator_db import (
     get_user_transactions,
     init_db,
     reset_user_portfolio,
+    upsert_daily_snapshot,
     verify_user,
 )
 from src.reports.charts import (
@@ -326,7 +327,7 @@ if st.session_state.authenticated_user is None:
         with col_login_center:
             gate_username = st.text_input("Username", key="gate_user_field").strip()
             gate_password = st.text_input("Password", type="password", key="gate_pass_field")
-            if st.button("Sign In", key="gate_signin_btn", type="primary", use_container_width=True):
+            if st.button("Sign In", key="gate_signin_btn", type="primary", width='stretch'):
                 if verify_user(gate_username, gate_password):
                     st.session_state.authenticated_user = gate_username
                     st.query_params["user"] = gate_username
@@ -335,7 +336,7 @@ if st.session_state.authenticated_user is None:
                     st.error("Invalid username or password.")
             
             st.markdown("<p style='text-align: center; margin-top: 15px;'>New to the platform?</p>", unsafe_allow_html=True)
-            if st.button("Register New User", key="switch_to_register_btn", use_container_width=True):
+            if st.button("Register New User", key="switch_to_register_btn", width='stretch'):
                 st.session_state.auth_page = "register"
                 st.rerun()
     else:
@@ -344,7 +345,7 @@ if st.session_state.authenticated_user is None:
         with col_reg_center:
             reg_username = st.text_input("New Username", key="gate_reg_user_field").strip()
             reg_password = st.text_input("New Password", type="password", key="gate_reg_pass_field")
-            if st.button("Register Account", key="gate_register_btn", type="primary", use_container_width=True):
+            if st.button("Register Account", key="gate_register_btn", type="primary", width='stretch'):
                 if not reg_username or not reg_password:
                     st.error("Username and Password cannot be empty.")
                 elif create_user(reg_username, reg_password):
@@ -355,7 +356,7 @@ if st.session_state.authenticated_user is None:
                     st.error("Username taken or database error.")
             
             st.markdown("<p style='text-align: center; margin-top: 15px;'>Already have an account?</p>", unsafe_allow_html=True)
-            if st.button("Back to Login", key="switch_to_login_btn", use_container_width=True):
+            if st.button("Back to Login", key="switch_to_login_btn", width='stretch'):
                 st.session_state.auth_page = "login"
                 st.rerun()
 
@@ -390,7 +391,7 @@ with col_user:
             unsafe_allow_html=True
         )
     with col_u2:
-        if st.button("Sign Out", key="top_signout_btn", use_container_width=True, type="secondary"):
+        if st.button("Sign Out", key="top_signout_btn", width='stretch', type="secondary"):
             st.session_state.authenticated_user = None
             st.query_params.clear()
             st.rerun()
@@ -405,7 +406,7 @@ if workspace_page == "Paper Trading Workspace":
     with col_refresh:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         if st.button(
-            "Refresh Data", use_container_width=True, type="secondary", key="trading_refresh_btn"
+            "Refresh Data", width='stretch', type="secondary", key="trading_refresh_btn"
         ):
             st.cache_data.clear()
             st.rerun()
@@ -458,6 +459,26 @@ if workspace_page == "Paper Trading Workspace":
     net_pnl = total_value - 1000000.0  # Initial principal is 10 Lakh
     pnl_pct = (net_pnl / 1000000.0) * 100
 
+    # Auto-save daily snapshot (once per calendar day per session)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    snapshot_key = f"snapshot_saved_{username}_{today_str}"
+    if not st.session_state.get(snapshot_key, False):
+        try:
+            yesterday_snaps = get_daily_snapshots(username)
+            prev_total = yesterday_snaps[-1]["total_value"] if yesterday_snaps else 1000000.0
+            daily_pnl_today = total_value - prev_total
+            upsert_daily_snapshot(
+                username=username,
+                date_str=today_str,
+                total_value=total_value,
+                cash=cash,
+                holdings_value=holdings_value,
+                daily_pnl=daily_pnl_today,
+            )
+            st.session_state[snapshot_key] = True
+        except Exception:
+            pass  # Silently skip — chart will populate next reload
+
     # 2. Render Metric cards
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
     col_m1.metric("Cash Balance", f"{cash:,.2f} INR")
@@ -486,7 +507,7 @@ if workspace_page == "Paper Trading Workspace":
         if allocations and st.button(
             "Apply AI Recommended Allocations Directly",
             type="primary",
-            use_container_width=True,
+            width='stretch',
         ):
             # Calculate required trades to match recommended allocations
             trades_executed = []
@@ -596,7 +617,7 @@ if workspace_page == "Paper Trading Workspace":
             )
             st.dataframe(
                 styled_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_order=["Asset", "Market", "Shares Owned", "Avg Purchase Price (INR)", "Current Live Price (INR)", "Total Value (INR)", "Unrealized P&L (INR)"]
             )
@@ -629,7 +650,7 @@ if workspace_page == "Paper Trading Workspace":
                 xaxis=dict(showgrid=False),
                 yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # Show daily summary change
             last_snap = snapshots[-1]
@@ -657,7 +678,7 @@ if workspace_page == "Paper Trading Workspace":
         st.write(f"Estimated Price: **{price:,.2f} INR**")
         st.write(f"Estimated Order Value: **{est_value:,.2f} INR**")
 
-        if st.button("Submit Order", type="primary", use_container_width=True):
+        if st.button("Submit Order", type="primary", width='stretch'):
             trade_result = execute_trade(username, selected_ticker, action, shares, price)
             if trade_result == "SUCCESS":
                 st.success(f"Order executed successfully: {action} {shares} {selected_ticker}")
@@ -669,7 +690,7 @@ if workspace_page == "Paper Trading Workspace":
         with st.expander("Transaction Log"):
             txs = get_user_transactions(username)
             if txs:
-                st.dataframe(pd.DataFrame(txs), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(txs), width='stretch', hide_index=True)
             else:
                 st.write("No transactions recorded yet.")
 
@@ -681,7 +702,7 @@ if workspace_page == "Paper Trading Workspace":
             "Reset Portfolio",
             type="secondary",
             disabled=not confirm_reset,
-            use_container_width=True,
+            width='stretch',
         ):
             if reset_user_portfolio(username):
                 st.success("Portfolio successfully reset back to default values!")
@@ -769,7 +790,7 @@ for cat_name, tickers in asset_categories.items():
         btn_label = ticker
         
         # Injecting compact padding styles on the button
-        if col.button(btn_label, key=f"btn_select_{ticker}", use_container_width=True, type="tertiary" if is_selected else "secondary"):
+        if col.button(btn_label, key=f"btn_select_{ticker}", width='stretch', type="tertiary" if is_selected else "secondary"):
             if ticker in st.session_state.selected_tickers:
                 st.session_state.selected_tickers.remove(ticker)
             else:
@@ -779,12 +800,12 @@ for cat_name, tickers in asset_categories.items():
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 col_sub1, col_sub2, col_sub3 = st.columns([1.5, 1.5, 7])
 with col_sub1:
-    if st.button("Select Invested", use_container_width=True, key="btn_select_invested_adviser"):
+    if st.button("Select Invested", width='stretch', key="btn_select_invested_adviser"):
         holdings = get_user_holdings(st.session_state.authenticated_user)
         st.session_state.selected_tickers = [pos["ticker"] for pos in holdings]
         st.rerun()
 with col_sub2:
-    if st.button("Clear All", use_container_width=True, key="btn_clear_all_adviser"):
+    if st.button("Clear All", width='stretch', key="btn_clear_all_adviser"):
         st.session_state.selected_tickers = []
         st.rerun()
 with col_sub3:
@@ -796,7 +817,7 @@ st.markdown("---")
 col_act1, col_act2 = st.columns(2)
 with col_act1:
     if st.button(
-        "Run Full Market Scan", type="primary", use_container_width=True, key="main_run_scan"
+        "Run Full Market Scan", type="primary", width='stretch', key="main_run_scan"
     ):
         if not selected_tickers:
             st.error("Please select at least one asset to scan.")
@@ -819,7 +840,7 @@ with col_act1:
                     st.error(f"Execution Error: {str(e)}")
 
 with col_act2:
-    if st.button("Reset Session ID", use_container_width=True, key="main_reset_session"):
+    if st.button("Reset Session ID", width='stretch', key="main_reset_session"):
         st.session_state.thread_id = f"dashboard-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         st.session_state.analysis_results = None
         st.session_state.approval_pending = False
@@ -840,7 +861,7 @@ if st.session_state.approval_pending and st.session_state.analysis_results:
     col_app1, col_app2 = st.columns(2)
 
     with col_app1:
-        if st.button("Approve & Generate Reports", type="primary", use_container_width=True):
+        if st.button("Approve & Generate Reports", type="primary", width='stretch'):
             with st.spinner("Resuming workflow pipeline..."):
                 try:
                     final_state = resume_with_approval(
@@ -857,7 +878,7 @@ if st.session_state.approval_pending and st.session_state.analysis_results:
                     st.error(f"Error resuming graph: {str(e)}")
 
     with col_app2:
-        if st.button("Reject & Stop Pipeline", type="secondary", use_container_width=True):
+        if st.button("Reject & Stop Pipeline", type="secondary", width='stretch'):
             try:
                 resume_with_approval(st.session_state.graph, st.session_state.thread_id, "reject")
                 st.session_state.approval_pending = False
@@ -890,7 +911,7 @@ if st.session_state.analysis_results:
                 data=pdf_bytes,
                 file_name=f"Daily_Investment_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
                 mime="application/pdf",
-                use_container_width=True,
+                width='stretch',
             )
             st.markdown("---")
 
@@ -904,7 +925,7 @@ if st.session_state.analysis_results:
             with col1:
                 st.subheader("Asset Breakdown")
                 fig_pie = build_allocation_pie(recomm.get("allocations", {}))
-                st.plotly_chart(fig_pie, use_container_width=True)
+                st.plotly_chart(fig_pie, width='stretch')
             with col2:
                 st.subheader("Advisor Stance Summary")
                 st.info(recomm.get("portfolio_summary", "No summary text."))
@@ -924,7 +945,7 @@ if st.session_state.analysis_results:
         composite = state.get("composite_scores", {})
         if composite:
             fig_heat = build_risk_heatmap(composite)
-            st.plotly_chart(fig_heat, use_container_width=True)
+            st.plotly_chart(fig_heat, width='stretch')
 
             selected_ticker = st.selectbox("Deep Dive Stock Ticker", list(composite.keys()))
 
@@ -932,7 +953,7 @@ if st.session_state.analysis_results:
             market = state.get("market_data", {}).get(selected_ticker, {})
             if market and market.get("prices"):
                 fig_candle = build_price_candlestick(selected_ticker, market["prices"])
-                st.plotly_chart(fig_candle, use_container_width=True)
+                st.plotly_chart(fig_candle, width='stretch')
 
                 # News
                 st.subheader("Sentiment Source News Headlines")
