@@ -632,30 +632,92 @@ if workspace_page == "Paper Trading Workspace":
         if snapshots:
             snap_df = pd.DataFrame(snapshots)
             snap_df["date"] = pd.to_datetime(snap_df["date"])
+            snap_df = snap_df.sort_values("date")
 
-            import plotly.express as px
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
 
-            fig = px.area(
-                snap_df,
-                x="date",
-                y="total_value",
-                title="Historical Portfolio Value (INR)",
-                labels={"date": "Date", "total_value": "Portfolio Value (INR)"},
-                color_discrete_sequence=["#a855f7"],
+            # Tight Y-axis bounds so small daily moves are visible
+            y_min = snap_df["total_value"].min()
+            y_max = snap_df["total_value"].max()
+            y_pad = max((y_max - y_min) * 0.15, 500)  # at least 500 INR padding
+
+            bar_colors = [
+                "#10b981" if v >= 0 else "#ef4444"
+                for v in snap_df["daily_pnl"]
+            ]
+
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                row_heights=[0.68, 0.32],
+                vertical_spacing=0.06,
+                subplot_titles=("Portfolio Value (INR)", "Daily P&L (INR)"),
             )
+
+            # Top panel – zoomed line + area fill
+            fig.add_trace(
+                go.Scatter(
+                    x=snap_df["date"],
+                    y=snap_df["total_value"],
+                    mode="lines+markers",
+                    name="Portfolio Value",
+                    line=dict(color="#a855f7", width=2.5),
+                    marker=dict(size=5, color="#c084fc"),
+                    fill="tozeroy",
+                    fillcolor="rgba(168,85,247,0.10)",
+                    hovertemplate="%{x|%d %b %Y}<br>Value: ₹%{y:,.0f}<extra></extra>",
+                ),
+                row=1, col=1,
+            )
+
+            # Bottom panel – daily P&L bars
+            fig.add_trace(
+                go.Bar(
+                    x=snap_df["date"],
+                    y=snap_df["daily_pnl"],
+                    name="Daily P&L",
+                    marker_color=bar_colors,
+                    hovertemplate="%{x|%d %b %Y}<br>P&L: ₹%{y:+,.0f}<extra></extra>",
+                ),
+                row=2, col=1,
+            )
+
             fig.update_layout(
+                height=420,
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 font_color="#cbd5e1",
-                xaxis=dict(showgrid=False),
-                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
+                font_family="Space Grotesk, sans-serif",
+                showlegend=False,
+                margin=dict(t=40, b=20, l=10, r=10),
             )
+            # Zoom the top Y-axis tightly around actual values
+            fig.update_yaxes(
+                range=[y_min - y_pad, y_max + y_pad],
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.06)",
+                row=1, col=1,
+            )
+            fig.update_yaxes(
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.06)",
+                zeroline=True,
+                zerolinecolor="rgba(255,255,255,0.15)",
+                row=2, col=1,
+            )
+            fig.update_xaxes(showgrid=False)
+
             st.plotly_chart(fig, width='stretch')
 
-            # Show daily summary change
+            # KPI strip below chart
             last_snap = snapshots[-1]
-            st.success(
-                f"**Market Daily Snapshot Update**: Your daily PnL changed by `{last_snap['daily_pnl']:+,.2f} INR` on {last_snap['date']}."
+            pnl_color = "#10b981" if last_snap["daily_pnl"] >= 0 else "#ef4444"
+            st.markdown(
+                f"<p style='font-size:0.9rem;color:{pnl_color};font-weight:700;'>"
+                f"Today's P&L: {last_snap['daily_pnl']:+,.2f} INR &nbsp;|&nbsp; "
+                f"Date: {last_snap['date']}</p>",
+                unsafe_allow_html=True,
             )
         else:
             st.info(
